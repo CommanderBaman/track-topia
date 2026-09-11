@@ -8,5 +8,5 @@ pub(super) fn run(
     sort: &SortOptions,
     tracker: &Option<String>,
 ) -> Result<(), AppError> {
-    Ok(())
+    unimplemented!()
 }

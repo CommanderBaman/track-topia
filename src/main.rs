@@ -2,7 +2,10 @@ use std::process::ExitCode;
 
 mod cli;
 mod command;
+mod database;
 mod error;
+mod file;
+mod model;
 mod time;
 
 fn main() -> std::process::ExitCode {

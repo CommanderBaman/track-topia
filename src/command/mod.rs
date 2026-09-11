@@ -17,7 +17,6 @@ pub fn run(command: &Command) -> Result<(), AppError> {
             timestamp,
             parse_as_utc,
         } => {
-            ensure_setup()?;
             let timestamp = parse_raw_timestamp(timestamp, parse_as_utc, "timestamp")?;
             add::run(tracker, value, &timestamp)
         }
@@ -28,24 +27,13 @@ pub fn run(command: &Command) -> Result<(), AppError> {
             sort,
             parse_as_utc,
         } => {
-            ensure_setup()?;
             let from = parse_raw_timestamp(from, parse_as_utc, "from")?;
             let to = parse_raw_timestamp(to, parse_as_utc, "to")?;
             list::run(&from, &to, sort, tracker)
         }
-        Command::Initialize { user_name } => initialize::run(user_name),
-        Command::Track { name, tracker_type } => {
-            ensure_setup()?;
-            track::run(name, tracker_type)
-        }
+        Command::Initialize {} => initialize::run(),
+        Command::Track { name, tracker_type } => track::run(name, tracker_type),
     }
-}
-
-fn ensure_setup() -> Result<(), AppError> {
-    if !initialize::is_setup_complete() {
-        return Err(AppError::Initialize);
-    }
-    Ok(())
 }
 
 fn parse_raw_timestamp(

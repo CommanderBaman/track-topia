@@ -63,11 +63,7 @@ pub enum Command {
         parse_as_utc: bool,
     },
     /// Initialize the database with tables
-    Initialize {
-        /// User name to store
-        #[arg(long)]
-        user_name: Option<String>,
-    },
+    Initialize {},
     /// Track a new habit
     Track {
         /// Name of Tracker
