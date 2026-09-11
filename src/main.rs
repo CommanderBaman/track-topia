@@ -13,7 +13,7 @@ fn main() -> std::process::ExitCode {
         }
         Err(e) => {
             println!("some error occurred. details: {}", e);
-            ExitCode::FAILURE
+            ExitCode::from(e)
         }
     }
 }
