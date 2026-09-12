@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+dotenv:
+  - .env
+tasks:
+  clean:
+    cmds:
+      - rm -rf temp
+  run:initialize:
+    cmds:
+      - cargo run -- initialize
+  run:list:
+    cmds:
+      - cargo run -- list
+  run:list:sorted:
+    cmds:
+      - cargo run -- list --sort tracker
+  run:track:
+    cmds:
+      - cargo run -- track --name buzz --tracker-kind value
+  run:add:
+    cmds:
+      - cargo run -- add -t buzz -v 1

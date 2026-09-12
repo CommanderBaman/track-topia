@@ -1,6 +1,6 @@
-use crate::error::AppError;
+use crate::{config::AppConfig, database::DatabaseImpl, error::AppError};
 
 pub(super) fn run() -> Result<(), AppError> {
-    let db = Database
-    unimplemented!()
+    let config = AppConfig::parse()?;
+    DatabaseImpl::initialize(&config)
 }

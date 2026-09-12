@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::model::TrackerKind;
+
 #[derive(Parser)]
 #[command(
     name = env!("CARGO_PKG_NAME"),
@@ -21,12 +23,6 @@ pub enum SortOptions {
     Id,
 }
 
-#[derive(Clone, ValueEnum)]
-pub enum TrackerType {
-    Value,
-    Continuous,
-}
-
 #[derive(Subcommand)]
 pub enum Command {
     /// Add a new tracking entry
@@ -36,7 +32,7 @@ pub enum Command {
         tracker: String,
         /// value for the entry (boolean, count, or continuous number)
         #[arg(long, short = 'v')]
-        value: i32,
+        value: f64,
         /// timestamp for the entry (YYYY-MM-DD HH:MM:SS). Defaults to now if not provided.
         #[arg(long, short = 'd')]
         timestamp: Option<String>,
@@ -71,7 +67,7 @@ pub enum Command {
         name: String,
         /// Type of Tracker
         #[arg(long, value_enum)]
-        tracker_type: TrackerType,
+        tracker_kind: TrackerKind,
     },
 }
 

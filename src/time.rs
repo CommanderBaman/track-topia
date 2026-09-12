@@ -16,6 +16,10 @@ pub fn convert_timestamp_to_local(timestamp: &DateTime<Utc>) -> DateTime<Local> 
     timestamp.with_timezone(&Local)
 }
 
+pub fn convert_millis_to_timestamp(x: i64) -> Option<DateTime<Utc>> {
+    DateTime::from_timestamp_millis(x)
+}
+
 pub fn format_timestamp<Tz>(timestamp: &DateTime<Tz>, format: Option<&str>) -> String
 where
     Tz: TimeZone,

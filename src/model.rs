@@ -1,73 +1,117 @@
-use std::{cmp::Ordering, fmt};
-
 use chrono::{DateTime, Utc};
+use clap::ValueEnum;
+use strum::{Display, EnumIter, EnumString, IntoStaticStr};
+use tabled::Tabled;
+use uuid::Uuid;
 
-#[derive(Clone)]
+use crate::error::AppError;
+use crate::time;
+
+impl From<strum::ParseError> for AppError {
+    fn from(value: strum::ParseError) -> Self {
+        AppError::Parse {
+            field: "strum-field",
+            value: "<None>".to_owned(),
+            reason: value.to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Display, EnumString, EnumIter, IntoStaticStr, ValueEnum)]
+#[strum(serialize_all = "lowercase")]
 pub enum TrackerKind {
     Value,
     Continuous,
 }
 
-const TRACKER_KIND_VALUE: &str = "value";
-const TRACKER_KIND_CONTINUOUS: &str = "continuous";
-
-impl TrackerKind {
-    fn parse(kind: &str) -> Option<TrackerKind> {
-        match kind {
-            TRACKER_KIND_CONTINUOUS => Some(TrackerKind::Continuous),
-            TRACKER_KIND_VALUE => Some(TrackerKind::Value),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for TrackerKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Continuous => write!(f, "{TRACKER_KIND_CONTINUOUS}"),
-            Self::Value => write!(f, "{TRACKER_KIND_VALUE}"),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct Tracker {
-    id: i32,
-    name: String,
-    kind: TrackerKind,
+    pub id: Uuid,
+    pub name: String,
+    pub kind: TrackerKind,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Tracker {
-    pub fn new(id: i32, name: &str, kind: &TrackerKind) -> Self {
+    pub fn new(name: &str, kind: &TrackerKind) -> Self {
         Self {
-            id,
+            id: Uuid::now_v7(),
             name: name.to_owned(),
             kind: kind.to_owned(),
+            created_at: time::get_current_timestamp(),
+            updated_at: time::get_current_timestamp(),
         }
     }
-    pub fn get_id(&self) -> &i32 {
-        &self.id
+    pub fn build(
+        id: &Uuid,
+        name: &str,
+        kind: &TrackerKind,
+        created_at: &DateTime<Utc>,
+        updated_at: &DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            kind: kind.to_owned(),
+            created_at: created_at.to_owned(),
+            updated_at: updated_at.to_owned(),
+        }
     }
 }
 
+#[derive(Tabled)]
 pub struct TrackerEntry {
-    tracker_id: i32,
-    value: i32,
-    timestamp: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub tracker_id: Uuid,
+    pub value: f64,
+    #[tabled(display("display_datetime", self))]
+    pub timestamp: DateTime<Utc>,
+    #[tabled(skip)]
+    pub created_at: DateTime<Utc>,
+    #[tabled(skip)]
+    pub updated_at: DateTime<Utc>,
+}
+
+fn display_datetime(ts: &DateTime<Utc>, _entry: &TrackerEntry) -> String {
+    time::format_timestamp(&time::convert_timestamp_to_local(ts), None)
 }
 
 impl TrackerEntry {
-    pub fn new(tracker_id: &i32, value: &i32, timestamp: &DateTime<Utc>) -> Self {
+    pub fn new(tracker_id: &Uuid, value: &f64, timestamp: &DateTime<Utc>) -> Self {
         TrackerEntry {
+            id: Uuid::now_v7(),
             tracker_id: tracker_id.clone(),
             value: value.clone(),
             timestamp: timestamp.clone(),
-            created_at: crate::time::get_current_timestamp(),
-            updated_at: crate::time::get_current_timestamp(),
+            created_at: time::get_current_timestamp(),
+            updated_at: time::get_current_timestamp(),
         }
     }
+    pub fn build(
+        id: &Uuid,
+        tracker_id: &Uuid,
+        value: &f64,
+        timestamp: &DateTime<Utc>,
+        created_at: &DateTime<Utc>,
+        updated_at: &DateTime<Utc>,
+    ) -> Self {
+        TrackerEntry {
+            id: id.to_owned(),
+            tracker_id: tracker_id.to_owned(),
+            value: value.to_owned(),
+            timestamp: timestamp.to_owned(),
+            created_at: created_at.to_owned(),
+            updated_at: updated_at.to_owned(),
+        }
+    }
+}
+
+pub enum Ordering {
+    // Less,
+    LessOrEqual,
+    // Equal,
+    // Greater,
+    GreaterOrEqual,
 }
 
 pub enum TrackerFilter {
@@ -76,12 +120,12 @@ pub enum TrackerFilter {
         operation: Ordering,
         value: DateTime<Utc>,
     },
-    CreationTime {
-        operation: Ordering,
-        value: DateTime<Utc>,
-    },
-    UpdateTime {
-        operation: Ordering,
-        value: DateTime<Utc>,
-    },
+    // CreationTime {
+    //     operation: Ordering,
+    //     value: DateTime<Utc>,
+    // },
+    // UpdateTime {
+    //     operation: Ordering,
+    //     value: DateTime<Utc>,
+    // },
 }

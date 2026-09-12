@@ -21,6 +21,12 @@ pub enum AppError {
     Database { reason: String },
     #[error("given {field} with value {value} is already present")]
     AlreadyPresent { field: &'static str, value: String },
+    #[error("given {field} with value {value} is not present")]
+    NotPresent { field: &'static str, value: String },
+    #[error("app data is corrupted")]
+    Corrupted { field: &'static str, value: String },
+    #[error("file io error: {reason}")]
+    FileIo { reason: String },
 }
 
 impl From<AppError> for ExitCode {
@@ -33,6 +39,9 @@ impl From<AppError> for ExitCode {
             AppError::Unknown { .. } => ExitCode::from(70),
             AppError::Database { .. } => ExitCode::from(69),
             AppError::AlreadyPresent { .. } => ExitCode::from(65),
+            AppError::NotPresent { .. } => ExitCode::from(65),
+            AppError::Corrupted { .. } => ExitCode::from(65),
+            AppError::FileIo { .. } => ExitCode::from(74),
         }
     }
 }

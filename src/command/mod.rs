@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::time::{get_current_timestamp, parse_timestamp_from_string};
+use crate::time;
 
 use crate::{cli::Command, error::AppError};
 
@@ -18,7 +18,11 @@ pub fn run(command: &Command) -> Result<(), AppError> {
             parse_as_utc,
         } => {
             let timestamp = parse_raw_timestamp(timestamp, parse_as_utc, "timestamp")?;
-            add::run(tracker, value, &timestamp)
+            add::run(
+                tracker,
+                value,
+                &timestamp.unwrap_or_else(time::get_current_timestamp),
+            )
         }
         Command::List {
             from,
@@ -32,7 +36,7 @@ pub fn run(command: &Command) -> Result<(), AppError> {
             list::run(&from, &to, sort, tracker)
         }
         Command::Initialize {} => initialize::run(),
-        Command::Track { name, tracker_type } => track::run(name, tracker_type),
+        Command::Track { name, tracker_kind } => track::run(name, tracker_kind),
     }
 }
 
@@ -40,19 +44,15 @@ fn parse_raw_timestamp(
     raw_timestamp: &Option<String>,
     parse_as_utc: &bool,
     field_name: &'static str,
-) -> Result<DateTime<Utc>, AppError> {
-    let timestamp = match raw_timestamp {
-        None => get_current_timestamp(),
-        Some(s) => {
-            let Some(t) = parse_timestamp_from_string(s, !parse_as_utc) else {
-                return Err(AppError::Parse {
-                    field: field_name,
-                    value: s.to_owned(),
-                    reason: "not provided".to_owned(),
-                });
-            };
-            t
-        }
-    };
-    Ok(timestamp)
+) -> Result<Option<DateTime<Utc>>, AppError> {
+    raw_timestamp
+        .as_deref()
+        .map(|t| {
+            time::parse_timestamp_from_string(&t, !parse_as_utc).ok_or(AppError::Parse {
+                field: field_name,
+                value: t.to_owned(),
+                reason: "unable to parse ts".to_owned(),
+            })
+        })
+        .transpose()
 }
