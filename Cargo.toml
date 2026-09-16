@@ -1,6 +1,6 @@
 [package]
 name = "track-topia"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
@@ -19,7 +19,4 @@ uuid = { version = "1.26.1", features = ["v7"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"
-
-[features]
-default = []
-prod = []
+serial_test = "4.0.1"

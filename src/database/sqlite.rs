@@ -100,7 +100,6 @@ impl SqliteDatabase {
         // ensure file
         let path = Self::database_path(config);
         make_file_if_not_exists(&path)?;
-        println!("{path:?}");
         let db = Self::new(&path)?;
         db.initialize_tables()
     }
@@ -202,7 +201,7 @@ impl Database for SqliteDatabase {
         let mut query = format!(
             "SELECT id, tracker_id, value, timestamp, created_at, updated_at FROM {TABLE_TRACKER_ENTRIES} "
         );
-        if filters.is_empty() {
+        if !filters.is_empty() {
             query.push_str(" WHERE 1 = 1 ");
             for filter in filters {
                 let condition_query: String = match filter {
@@ -213,7 +212,7 @@ impl Database for SqliteDatabase {
                                 value: name.to_owned(),
                             });
                         };
-                        format!("tracker_id = {}", filter_tracker.id)
+                        format!("tracker_id = '{}'", filter_tracker.id)
                     }
                     // TrackerFilter::UpdateTime { operation, value } => {
                     //     format!(

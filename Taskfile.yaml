@@ -11,13 +11,18 @@ tasks:
       - cargo run -- initialize
   run:list:
     cmds:
-      - cargo run -- list
-  run:list:sorted:
-    cmds:
-      - cargo run -- list --sort tracker
+      - cargo run -- list {{.FLAGS}}
   run:track:
     cmds:
-      - cargo run -- track --name buzz --tracker-kind value
+      - cargo run -- track {{.FLAGS}}
   run:add:
     cmds:
-      - cargo run -- add -t buzz -v 1
+      - cargo run -- add {{.FLAGS}}
+  build:
+    cmds:
+      - cargo build --release
+  release:
+    deps:
+      - build
+    cmds:
+      - cp target/release/track-topia ~/.local/bin/track-topia

@@ -92,19 +92,14 @@ fn print_entries_table(entries: &Vec<TrackerEntry>, trackers: &HashMap<Uuid, Tra
     // header - i don't believe there is a need anymore
     // main table
     let mut table = Table::new(entries);
-    // let clr_head = Color::BG_CYAN | Color::FG_BLACK | Color::BOLD;
-    // let clr_footer = Color::BG_BLUE | Color::FG_BLACK | Color::BOLD;
     table
-        // .with(Colorization::exact([clr_head.clone()], Rows::first()))
-        // .with(Colorization::exact([clr_head], Rows::one(1)))
-        // .with(Colorization::exact([clr_footer], Rows::last()))
         .with(Style::modern_rounded())
         .with(BorderCorrection::span())
         .with(Alignment::center())
         .with(Alignment::center_vertical())
         .with(Merge::vertical())
         .with(
-            Modify::new(Columns::one(1)).with(Format::content(|content| match content {
+            Modify::new(Columns::one(0)).with(Format::content(|content| match content {
                 "tracker_id" => "tracker".to_owned(),
                 _ => Uuid::from_str(content)
                     .ok()
