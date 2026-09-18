@@ -1,13 +1,14 @@
-use clap::Parser;
-use track_topia::{Cli, run};
+use std::process::ExitCode;
 
-fn main() {
-    let cli = Cli::parse();
-
-    let result = run(cli);
-
-    match result {
-        Ok(_) => println!("Query complete"),
-        Err(e) => println!("some error occurred. details: {}", e),
+fn main() -> std::process::ExitCode {
+    match track_topia::run() {
+        Ok(_) => {
+            println!("Query complete");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            println!("some error occurred. details: {}", e);
+            ExitCode::from(e)
+        }
     }
 }

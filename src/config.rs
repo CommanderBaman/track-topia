@@ -1,118 +1,137 @@
-use std::{
-    error::Error,
-    fs::File,
-    io::{self, BufReader, BufWriter, ErrorKind},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
-use directories::BaseDirs;
-use serde::{Deserialize, Serialize};
+use config::{Config, Environment};
 
-use crate::{
-    constants::{APP_NAME, DEFAULT_CONFIG_NAME, DEFAULT_USER_NAME},
-    db::Database,
-    file::make_file_if_not_exists,
-    user::{User, UserDatabase},
-};
+use crate::{error::AppError, file::get_local_data_path};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Config {
-    save_path: PathBuf,
-    pub user: Option<User>,
+pub struct AppConfig {
+    pub data_folder: PathBuf,
+    pub database_host: Option<String>,
 }
 
-impl Config {
-    fn get_config_path() -> Option<PathBuf> {
-        BaseDirs::new().map(|base_dirs| {
-            base_dirs
-                .data_local_dir()
-                .join(APP_NAME)
-                .join(DEFAULT_CONFIG_NAME)
+const ENV_PREFIX: &str = "track_topia";
+const ENV_POSTFIX_DATA_FOLDER: &str = "data_folder";
+const ENV_POSTFIX_DATABASE_HOST: &str = "database_host";
+
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
+
+impl AppConfig {
+    pub fn parse() -> Result<Self, AppError> {
+        let config = Config::builder()
+            .add_source(Environment::with_prefix(ENV_PREFIX))
+            .build()
+            .map_err(|e| AppError::Parse {
+                field: module_path!(),
+                value: "<None>".to_owned(),
+                reason: format!("{:?}", e),
+            })?;
+        let data_folder = config
+            .get_string(ENV_POSTFIX_DATA_FOLDER)
+            .map(PathBuf::from)
+            .or_else(|_| get_local_data_path().map(|p| p.join(APP_NAME)))?;
+        let database_host = config.get_string(ENV_POSTFIX_DATABASE_HOST).ok();
+        Ok(Self {
+            data_folder,
+            database_host,
         })
     }
-
-    pub fn new() -> Result<Config, io::Error> {
-        // make config file if not exists
-        if let Some(save_path) = Config::get_config_path() {
-            make_file_if_not_exists(&save_path).expect("unable to form config file");
-            Ok(Config {
-                save_path,
-                user: None,
-            })
-        } else {
-            Err(io::Error::new(
-                ErrorKind::NotFound,
-                "coulnd't find a place to store configuration file",
-            ))
-        }
-    }
-
-    fn save(&self) -> Result<(), Box<dyn Error>> {
-        let json_file = File::create(&self.save_path).expect("config file must be present");
-        let writer = BufWriter::new(json_file);
-        serde_json::to_writer_pretty(writer, &self).expect("able to write the config to json file");
-        Ok(())
-    }
-
-    fn update_user(&mut self, user_name: &str, user_id: &i32) {
-        self.user = Some(User::new(user_id.to_owned(), user_name.to_owned()))
-    }
-
-    pub fn load(&mut self) -> Result<(), Box<dyn Error>> {
-        // read config
-        let json_file = File::open(&self.save_path).expect("config file must be present");
-        let reader = BufReader::new(json_file);
-        // TODO: handle not able to read issue
-
-        if let Ok(config) = serde_json::from_reader::<_, Config>(reader) {
-            self.user = config.user;
-            self.save_path = config.save_path;
-        }
-        Ok(())
-    }
 }
 
-pub fn initialize_user(user_name: Option<&str>) -> Result<(), Box<dyn Error>> {
-    // extract arguments
-    let user_name = user_name
-        .filter(|name| !name.is_empty())
-        .unwrap_or(DEFAULT_USER_NAME)
-        .to_string();
+#[cfg(test)]
+mod tests {
+    use std::env;
 
-    // initialize config and database
-    let mut config = Config::new().expect("configuration should be made");
-    let database = Database::new().expect("database must be initialized before initializing user");
+    use serial_test::serial;
 
-    // load config
-    config.load().expect("config to be loaded");
+    use super::*;
 
-    // if config already populated
-    let mut name_to_update = String::new();
-    let mut id_to_update = 0;
-    if let Some(user_in_config) = &config.user {
-        // load current name from db
-        if let Ok(user_in_db) = database.get_user_by_name(&user_name) {
-            // if user in db, then update with db
-            name_to_update = user_in_db.name;
-            id_to_update = user_in_db.id;
-        } else if user_in_config.name == user_name {
-            // if same as config, then update with config
-            name_to_update = user_in_config.name.clone();
-            id_to_update = user_in_config.id;
+    fn clear_env() {
+        unsafe {
+            env::remove_var(format!("{ENV_PREFIX}_{ENV_POSTFIX_DATABASE_HOST}").to_uppercase());
+            env::remove_var(format!("{ENV_PREFIX}_{ENV_POSTFIX_DATA_FOLDER}").to_uppercase());
         }
     }
-    if name_to_update.is_empty() {
-        // if no update till now => no user present
-        // make a completely new user
-        let user_id = database
-            .create_user(&user_name)
-            .expect("create user query should work");
-        name_to_update = user_name;
-        id_to_update = user_id;
-    }
-    config.update_user(&name_to_update, &id_to_update);
 
-    // save config
-    config.save().expect("config was not able to save");
-    Ok(())
+    fn set_env_var_database_host(value: &str) {
+        unsafe {
+            env::set_var(
+                format!("{ENV_PREFIX}_{ENV_POSTFIX_DATABASE_HOST}").to_uppercase(),
+                value,
+            );
+        }
+    }
+
+    fn set_env_var_data_folder(value: &str) {
+        unsafe {
+            env::set_var(
+                format!("{ENV_PREFIX}_{ENV_POSTFIX_DATA_FOLDER}").to_uppercase(),
+                value,
+            );
+        }
+    }
+
+    fn get_config() -> AppConfig {
+        AppConfig::parse().expect("config can be initialized safely in test")
+    }
+
+    fn assert_default_data_path(cfg: &AppConfig) {
+        let data_path =
+            get_local_data_path().expect("config path can be initialized safely in tests");
+        assert_eq!(cfg.data_folder, data_path.join(env!("CARGO_PKG_NAME")));
+    }
+
+    fn assert_default_database_host(cfg: &AppConfig) {
+        assert!(cfg.database_host.is_none());
+    }
+
+    #[test]
+    fn constants() {
+        assert_eq!(ENV_PREFIX, "track_topia");
+        assert_eq!(ENV_POSTFIX_DATABASE_HOST, "database_host");
+        assert_eq!(ENV_POSTFIX_DATA_FOLDER, "data_folder");
+    }
+
+    #[test]
+    #[serial]
+    fn default_value() {
+        clear_env();
+        let cfg = get_config();
+        assert_default_data_path(&cfg);
+        assert_default_database_host(&cfg);
+    }
+
+    #[test]
+    #[serial]
+    fn value_extraction_for_database_host_and_other_unchanged() {
+        clear_env();
+        let host_name = "memory";
+        set_env_var_database_host(host_name);
+        let cfg = get_config();
+        assert_default_data_path(&cfg);
+        assert_eq!(cfg.database_host, Some(host_name.to_owned()));
+    }
+
+    #[test]
+    #[serial]
+    fn value_extraction_for_data_folder_and_other_unchanged() {
+        clear_env();
+        let folder = "/someplace";
+        set_env_var_data_folder(folder);
+        let cfg = get_config();
+        assert_default_database_host(&cfg);
+        assert_eq!(cfg.data_folder, PathBuf::from(folder));
+    }
+
+    #[test]
+    #[serial]
+    fn both_values_extracted() {
+        clear_env();
+        let folder = "/someplace";
+        let host_name = "memory";
+        set_env_var_database_host(host_name);
+        set_env_var_data_folder(folder);
+        let cfg = get_config();
+        assert_eq!(cfg.data_folder, PathBuf::from(folder));
+        assert_eq!(cfg.database_host, Some(host_name.to_owned()));
+    }
 }

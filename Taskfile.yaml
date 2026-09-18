@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+dotenv:
+  - .env
+tasks:
+  clean:
+    cmds:
+      - rm -rf temp
+  run:initialize:
+    cmds:
+      - cargo run -- initialize
+  run:list:
+    cmds:
+      - cargo run -- list {{.FLAGS}}
+  run:track:
+    cmds:
+      - cargo run -- track {{.FLAGS}}
+  run:add:
+    cmds:
+      - cargo run -- add {{.FLAGS}}
+  build:
+    cmds:
+      - cargo build --release
+  release:
+    deps:
+      - build
+    cmds:
+      - cp target/release/track-topia ~/.local/bin/track-topia

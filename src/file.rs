@@ -1,14 +1,28 @@
-use std::fs::{create_dir_all, write};
-use std::io::{Error, ErrorKind};
-use std::path::Path;
+use std::{
+    fs::{create_dir_all, write},
+    path::{Path, PathBuf},
+};
 
-pub fn make_file_if_not_exists(file_path: &Path) -> Result<(), Error> {
+use directories::BaseDirs;
+
+use crate::error::AppError;
+
+pub fn get_local_data_path() -> Result<PathBuf, AppError> {
+    if let Some(base_dirs) = BaseDirs::new() {
+        return Ok(base_dirs.data_local_dir().to_owned());
+    }
+    Err(AppError::Unknown {
+        location: concat!(module_path!(), ":", line!()),
+        reason: "generating config path failed".to_owned(),
+    })
+}
+
+pub fn make_file_if_not_exists(file_path: &Path) -> Result<(), AppError> {
     // check if it is directory
     if file_path.is_dir() {
-        return Err(Error::new(
-            ErrorKind::IsADirectory,
-            "Given path is a directory",
-        ));
+        return Err(AppError::FileIo {
+            reason: "given path is a directory".to_owned(),
+        });
     }
 
     // if exists, return ok
@@ -16,23 +30,25 @@ pub fn make_file_if_not_exists(file_path: &Path) -> Result<(), Error> {
         return Ok(());
     }
     // create parent directories
-    create_dir_all(
-        file_path
-            .parent()
-            .expect("Path to parent must not be root or empty"),
-    )
-    .expect("Unable to create directory");
-    // create file now
-    write(file_path, "").expect("file to be written");
+    let parent_path = file_path.parent().ok_or(AppError::FileIo {
+        reason: "Path to parent must not be root or empty".to_owned(),
+    })?;
+    create_dir_all(parent_path).map_err(|e| AppError::FileIo {
+        reason: format!("error creating directory = {e}"),
+    })?;
+    // write empty string to file to create it
+    write(file_path, "").map_err(|e| AppError::FileIo {
+        reason: format!("error writing to file = {e}"),
+    })?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use std::io::Read;
     use std::path::PathBuf;
+    use std::{env, fs};
     use tempdir::TempDir;
 
     // Helper to read file contents (expects UTF-8)
@@ -94,5 +110,30 @@ mod tests {
 
         let result = make_file_if_not_exists(&dir_path);
         assert!(result.is_err(), "raise error when give path is directory");
+    }
+
+    #[test]
+    fn local_data_path() {
+        let home_path = {
+            #[cfg(unix)]
+            {
+                env::var_os("HOME").expect("HOME environment variable to be defined")
+            }
+            #[cfg(windows)]
+            {
+                env::var_os("LOCALAPPDATA")
+                    .expect("local app data environment variable to be defined")
+            }
+        };
+
+        // TODO: complete for other Oses
+        let local_path = {
+            #[cfg(target_os = "macos")]
+            "Library/Application Support"
+        };
+
+        let expected_path = PathBuf::from(home_path).join(local_path);
+        let config_path = get_local_data_path().expect("getting local path should not fail");
+        assert_eq!(expected_path, config_path);
     }
 }
